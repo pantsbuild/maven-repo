@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 API_HOST=api.bintray.com
-BASE_URL=https://${API_HOST}/content/pantsbuild/maven/repo
+BASE_URL=https://${API_HOST}/content/pantsbuild/maven-repo/maven-repo
 VERSION=0.0.1
 
 URL=${BASE_URL}/${VERSION}

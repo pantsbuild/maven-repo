@@ -51,7 +51,7 @@ fi
 
 trap "discard" EXIT
 
-files=($(find . -mindepth 2 \! -wholename "./.git/*"))
+files=($(find . -mindepth 2 -type f \! -wholename "./.git/*"))
 count=${#files[@]}
 
 echo "Uploading ${count} files to https://dl.bintray.com/pantsbuild/maven"

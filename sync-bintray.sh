@@ -1,33 +1,13 @@
 #!/usr/bin/env bash
 
 API_HOST=api.bintray.com
-BASE_URL=https://${API_HOST}/content/pantsbuild/maven-repo/maven-repo
+
+ORG=pantsbuild
+REPOSITORY=maven
+PACKAGE=repo
 VERSION=0.0.1
 
-URL=${BASE_URL}/${VERSION}
-
-function publish {
-  curl \
-    --fail \
-    --netrc \
-    --data "$1" \
-    ${URL}/publish &> /dev/null
-}
-
-FINALIZED=
-
-function finalize {
-  echo "Publishing uploaded artifacts..."
-  publish && FINALIZED=true
-}
-
-function discard {
-  if [[ -z "${FINALIZED}" ]]
-  then
-    echo -e "\nDiscarding uploaded artifacts..."
-    publish '{"discard": true}'
-  fi
-}
+URL=https://${API_HOST}/content/${ORG}/${REPOSITORY}/${PACKAGE}/${VERSION}
 
 function check_netrc {
   [[ -f ~/.netrc && -n "$(grep -E "^\s*machine\s+${API_HOST}\s*$" ~/.netrc)" ]]
@@ -36,7 +16,7 @@ function check_netrc {
 if ! check_netrc
 then
   echo "In order to publish bintray binaries you need an account"
-  echo "with membership in the pantsbuild org [1]."
+  echo "with membership in the ${ORG} org [1]."
   echo
   echo "This account will need to be added to a ~/.netrc entry as follows:"
   echo 
@@ -44,37 +24,32 @@ then
   echo "  login <bintray username>"
   echo "  password <bintray api key [2]>"
   echo
-  echo "[1] https://bintray.com/pantsbuild"
+  echo "[1] https://bintray.com/${ORG}"
   echo "[2] https://bintray.com/docs/interacting/interacting_apikeys.html"
   exit 1
 fi
 
-trap "discard" EXIT
-
-files=($(find . -mindepth 2 -type f \! -wholename "./.git/*"))
-count=${#files[@]}
-
-echo "Uploading ${count} files to https://dl.bintray.com/pantsbuild/maven"
+echo "Uploading artifacts to https://dl.bintray.com/${ORG}/${REPOSITORY}/${PACKAGE}"
 echo
 echo "Press CTRL-C at any time to discard the uploaded artifacts; otherwise,"
 echo "the artifacts will be finalized and published en-masse just before the"
 echo "script completes."
 echo
 
-for i in $(seq 1 ${count})
-do
-  file=${files[$((i-1))]}
-  echo "[${i}/${count}] Uploading ${file}"
-  curl \
-    --fail \
-    --netrc \
-    --upload-file ${file} \
-    -o /dev/null \
-    --progress-bar \
-    -# \
-    "${URL}/${file}?override=1" || \
-  exit 1
-  echo
-done
+archive=$(mktemp -t "repo.XXXXXX.zip") && \
+git archive HEAD -o ${archive} && \
+trap "rm -f ${archive}" EXIT && \
+(
+  echo "The following zip will be uploaded:"
+  echo "=="
+  zipinfo -1 ${archive}
+) | less -EF && \
+curl \
+  --fail \
+  --netrc \
+  --upload-file ${archive} \
+  -o /dev/null \
+  --progress-bar \
+  -# \
+  "${URL}/${archive}?override=1&explode=1&publish=1"
 
-finalize

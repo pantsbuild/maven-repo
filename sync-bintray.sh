@@ -36,6 +36,20 @@ echo "the artifacts will be finalized and published en-masse just before the"
 echo "script completes."
 echo
 
+# TODO(John Sirois): Use https://api.bintray.com/packages/pantsbuild/maven/repo/files
+# which lists all files with sha1s like so to pack smaller archives:
+# {
+#        "created": "2015-04-01T20:45:57.548Z",
+#        "name": "sync-bintray.sh",
+#        "owner": "pantsbuild",
+#        "package": "repo",
+#        "path": "sync-bintray.sh",
+#        "repo": "maven",
+#        "sha1": "2b8ae9989f173d37780d6fecc9d9c1ed129b3ade",
+#        "size": 1418,
+#        "version": "0.0.1"
+# }
+
 archive=$(mktemp -t "repo.XXXXXX.zip") && \
 git archive HEAD -o ${archive} && \
 trap "rm -f ${archive}" EXIT && \

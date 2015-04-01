@@ -49,10 +49,15 @@ echo
 #        "size": 1418,
 #        "version": "0.0.1"
 # }
+# git ls-files | xargs openssl sha1 | sed -E "s|^SHA1\(([^)]+)\)= ([0-9a-f]+)$|\1 \2|"
 
-archive=$(mktemp -t "repo.XXXXXX.zip") && \
-git archive HEAD -o ${archive} && \
-trap "rm -f ${archive}" EXIT && \
+# NB: Archives sent to bintray for exploding must not have directory entries inside, just the
+# file entries.
+
+archive_dir=$(mktemp -dt "repo.XXXXXX") && \
+trap "rm -rf ${archive_dir}" EXIT && \
+archive="${archive_dir}/repo.zip" && \
+git ls-files | xargs zip -q --no-dir-entries ${archive} && \
 (
   echo "The following zip will be uploaded:"
   echo "=="

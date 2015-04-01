@@ -51,5 +51,5 @@ curl \
   -o /dev/null \
   --progress-bar \
   -# \
-  "${URL}/${archive}?override=1&explode=1&publish=1"
+  "${URL}/$(basename ${archive})?override=1&explode=1&publish=1"
 

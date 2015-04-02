@@ -14,6 +14,8 @@ function grab_directory() {
   local directory=$1
 
   wget \
+    --quiet \
+    --show-progress \
     --recursive \
     --no-parent \
     -e robots=off \
@@ -50,7 +52,7 @@ function create_key() {
 function have_visited() {
   local key=$(create_key "$@")
  
-  for element in ${visited[@]}
+  for element in "${visited[@]}"
   do
     if [[ "${element}" == "${key}" ]]
     then

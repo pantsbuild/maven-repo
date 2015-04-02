@@ -7,7 +7,7 @@ REPOSITORY=maven
 PACKAGE=repo
 VERSION=0.0.1
 
-URL=https://${API_HOST}/content/${ORG}/${REPOSITORY}/${PACKAGE}/${VERSION}
+REPO_KEY="${ORG}/${REPOSITORY}/${PACKAGE}"
 
 function check_netrc {
   [[ -f ~/.netrc && -n "$(grep -E "^\s*machine\s+${API_HOST}\s*$" ~/.netrc)" ]]
@@ -29,46 +29,55 @@ then
   exit 1
 fi
 
-echo "Uploading artifacts to https://dl.bintray.com/${ORG}/${REPOSITORY}/${PACKAGE}"
+echo "Uploading artifacts to https://dl.bintray.com/${ORG}/${REPOSITORY}"
 echo
 echo "Press CTRL-C at any time to discard the uploaded artifacts; otherwise,"
 echo "the artifacts will be finalized and published en-masse just before the"
 echo "script completes."
 echo
 
-# TODO(John Sirois): Use https://api.bintray.com/packages/pantsbuild/maven/repo/files
-# which lists all files with sha1s like so to pack smaller archives:
-# {
-#        "created": "2015-04-01T20:45:57.548Z",
-#        "name": "sync-bintray.sh",
-#        "owner": "pantsbuild",
-#        "package": "repo",
-#        "path": "sync-bintray.sh",
-#        "repo": "maven",
-#        "sha1": "2b8ae9989f173d37780d6fecc9d9c1ed129b3ade",
-#        "size": 1418,
-#        "version": "0.0.1"
-# }
-# git ls-files | xargs openssl sha1 | sed -E "s|^SHA1\(([^)]+)\)= ([0-9a-f]+)$|\1 \2|"
+function hash_local_files() {
+  git ls-files | \
+  grep -v -E ".sha1$" | \
+  xargs openssl sha1 | \
+  sed -E "s/^SHA1\(([^)]+)\)= ([0-9a-f]+)$/\1 \2/"
+}
 
-# NB: Archives sent to bintray for exploding must not have directory entries inside, just the
-# file entries.
+function hash_remote_files() {
+  curl --netrc -sS https://${API_HOST}/packages/${REPO_KEY}/files | \
+  python2.7 -c '
+import json
+import sys
 
-archive_dir=$(mktemp -dt "repo.XXXXXX") && \
-trap "rm -rf ${archive_dir}" EXIT && \
-archive="${archive_dir}/repo.zip" && \
-git ls-files | xargs zip -q --no-dir-entries ${archive} && \
-(
-  echo "The following zip will be uploaded:"
-  echo "=="
-  zipinfo -1 ${archive}
-) | less -EF && \
-curl \
-  --fail \
-  --netrc \
-  --upload-file ${archive} \
-  -o /dev/null \
-  --progress-bar \
-  -# \
-  "${URL}/$(basename ${archive})?override=1&explode=1&publish=1"
+for entry in json.load(sys.stdin):
+  print("{} {}".format(entry["path"], entry["sha1"]))
+'
+}
+
+files=($(comm -2 -3 <(hash_local_files | sort) <(hash_remote_files | sort) | cut -d' ' -f1))
+
+if (( ${#files[@]} > 0 ))
+then
+  # NB: Archives sent to bintray for exploding must not have directory entries inside, just the
+  # file entries; thus the --no-dir-entries argument to zip below is critical.
+  archive_dir=$(mktemp -dt "repo.XXXXXX") && \
+  trap "rm -rf ${archive_dir}" EXIT && \
+  archive="${archive_dir}/repo.zip" && \
+  echo "${files[@]}" | xargs zip -q --no-dir-entries ${archive} && \
+  (
+    echo "A zip with the following contents will be uploaded:"
+    echo "=="
+    zipinfo -1 ${archive}
+  ) | less && \
+  curl \
+    --fail \
+    --netrc \
+    --upload-file ${archive} \
+    -o /dev/null \
+    --progress-bar \
+    -# \
+    "https://${API_HOST}/content/${REPO_KEY}/${VERSION}/repo.zip?override=1&explode=1&publish=1"
+fi
+
+echo "Bintray is up to date!"
 

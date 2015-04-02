@@ -43,38 +43,29 @@ function calculate_commons_dependencies() {
   wget --quiet --output-document=- ${pom_url} | xsltproc grab-commons.xsl -
 }
 
-visited=()
+declare -A visited
 
-function create_key() {
-  echo "$@" | tr ' ' '|'
+function visit() {
+  local key="$1"
+
+  visited[${key}]="true"
 }
 
 function have_visited() {
-  local key=$(create_key "$@")
- 
-  for element in "${visited[@]}"
-  do
-    if [[ "${element}" == "${key}" ]]
-    then
-      return 0
-    fi
-  done
-  return 1
-}
+ local key="$1"
 
-function visit() {
-  local key=$(create_key "$@")
-  visited+=(${key})
+ echo ${visited[${key}]:=false}
 }
 
 function calculate_commons_closure() {
   local org=$1
   local name=$2
   local rev=$3
-  
-  if ! have_visited ${org} ${name} ${rev}
+
+  local key="${org}|${name}|${rev}"
+  if [[ "$(have_visited ${key})" == "false" ]]
   then
-    visit ${org} ${name} ${rev}
+    visit "${key}"
 
     echo ${org} ${name} ${rev}
 

@@ -8,18 +8,17 @@
   <xsl:output method="text"/>
 
   <xsl:template match="/">
-    <xsl:apply-templates select="pom:project/pom:dependencies/pom:dependency"/>
+    <xsl:apply-templates select="pom:project/pom:dependencies/pom:dependency[
+                                   starts-with(pom:groupId, 'com.twitter.common')
+                                 ]"/>
   </xsl:template>
 
   <xsl:template match="pom:dependency">
-    <xsl:variable name="org" select="pom:groupId"/>
-    <xsl:if test="starts-with($org, 'com.twitter.common')">
-      <xsl:value-of select="pom:groupId"/>
-      <xsl:text> </xsl:text>
-      <xsl:value-of select="pom:artifactId"/>
-      <xsl:text> </xsl:text>
-      <xsl:value-of select="pom:version"/>
-      <xsl:text>&#xa;</xsl:text>
-    </xsl:if>
+    <xsl:value-of select="pom:groupId"/>
+    <xsl:text> </xsl:text>
+    <xsl:value-of select="pom:artifactId"/>
+    <xsl:text> </xsl:text>
+    <xsl:value-of select="pom:version"/>
+    <xsl:text>&#xa;</xsl:text>
   </xsl:template>
 </xsl:stylesheet>
